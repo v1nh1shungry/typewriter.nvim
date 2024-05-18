@@ -4,7 +4,7 @@ local ffi = require('ffi')
 
 local root_dir = vim.fs.normalize(vim.fs.dirname(debug.getinfo(1).source:sub(2)) .. '/..')
 
-local libtypewriter = ffi.load(vim.fs.joinpath(root_dir, 'libtypewriter.so'))
+local libtypewriter = ffi.load(vim.fs.joinpath(root_dir, 'build', 'libtypewriter.so'))
 
 local config = {
   enabled = true,

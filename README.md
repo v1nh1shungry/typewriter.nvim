@@ -2,6 +2,12 @@
 
 Play typewriter sound in Neovim.
 
+## ⚡️ Requirement
+
+* Linux only
+* [SFML](https://github.com/SFML/SFML)
+* cmake
+
 ## 📦 Installation
 
 💤 [lazy.nvim](https://github.com/folke/lazy.nvim)
@@ -9,6 +15,7 @@ Play typewriter sound in Neovim.
 ```lua
 {
     'v1nh1shungry/typewriter.nvim',
+    build = 'cmake -S . -B build && cmake --build build && cmake --install build --prefix build',
     keys = { { '<Leader>uk', function() require('typewriter').toggle() end, desc = 'Toggle typewriter' } },
     lazy = false,
     opts = {},
@@ -29,18 +36,3 @@ Play typewriter sound in Neovim.
 ## 🚀 Usage
 
 * `toggle()`: Enable/Disable typewriter
-
-## Build
-
-### Requirement
-
-* `openal`
-* `vorbis`
-* `openal`
-
-```bash
-cmake -S . -B build
-cmake --build build/
-# important: you should copy the .so to the root directory so that the plugin can find it
-cp build/libtypewriter.so .
-```

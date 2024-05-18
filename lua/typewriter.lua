@@ -8,6 +8,7 @@ local libtypewriter = ffi.load(vim.fs.joinpath(root_dir, 'build', 'libtypewriter
 
 local config = {
   enabled = true,
+  volume = 100.0,
 }
 
 ffi.cdef([[
@@ -15,6 +16,7 @@ typedef struct AudioPlayback AudioPlayback;
 AudioPlayback *new_audio_playback();
 void delete_audio_playback(AudioPlayback *);
 void play_sound(AudioPlayback *, const char *);
+void set_volume(AudioPlayback *, float);
 ]])
 
 local AudioPlaybackWrapper = {}
@@ -32,6 +34,10 @@ function AudioPlaybackWrapper.play_sound(self, filename)
   end
 end
 
+function AudioPlaybackWrapper.set_volume(self, volume)
+  libtypewriter.set_volume(self.super, volume)
+end
+
 local audio_playback = AudioPlayback()
 
 function M.toggle()
@@ -45,6 +51,8 @@ end
 
 function M.setup(opts)
   config = vim.tbl_extend('force', config, opts)
+
+  audio_playback:set_volume(config.volume)
 
   local any_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyany.wav')
   local enter_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyenter.wav')

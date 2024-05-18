@@ -23,7 +23,7 @@ public:
     sound_.play();
   }
 
-  bool is_playing() const { return sound_.getStatus() == sf::Sound::Playing; }
+  void set_volume(float volume) { sound_.setVolume(volume); }
 
 private:
   sf::Sound sound_;
@@ -36,4 +36,9 @@ extern "C" void delete_audio_playback(AudioPlayback *self) { delete self; }
 
 extern "C" void play_sound(AudioPlayback *self, const char *filename) {
   self->play(filename);
+}
+
+extern "C" void set_volume(AudioPlayback *self, float volume) {
+  volume = std::max(0.f, std::min(volume, 100.f));
+  self->set_volume(volume);
 }

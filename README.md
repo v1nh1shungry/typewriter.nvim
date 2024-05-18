@@ -30,6 +30,7 @@ Play typewriter sound in Neovim.
 {
     -- default ocnfiguration
     enabled = true, -- whether to enable typewriter when enter Neovim
+    volume = 100.0,
 }
 ```
 

@@ -5,8 +5,8 @@ Play typewriter sound in Neovim.
 ## ⚡️ Requirement
 
 * Linux only
-* [SFML](https://github.com/SFML/SFML)
-* cmake
+* [SDL2](https://libsdl.org/)
+* [SDL_mixer 2.0](https://www.libsdl.org/projects/old/SDL_mixer/)
 
 ## 📦 Installation
 
@@ -15,7 +15,6 @@ Play typewriter sound in Neovim.
 ```lua
 {
     'v1nh1shungry/typewriter.nvim',
-    build = 'cmake -S . -B build && cmake --build build && cmake --install build --prefix build',
     keys = { { '<Leader>uk', function() require('typewriter').toggle() end, desc = 'Toggle typewriter' } },
     lazy = false,
     opts = {},
@@ -30,7 +29,11 @@ Play typewriter sound in Neovim.
 {
     -- default ocnfiguration
     enabled = true, -- whether to enable typewriter when enter Neovim
-    volume = 100.0,
+    volume = 100,
+    libs = { -- you can specify the library path manually if not found
+        sdl = nil, -- path to libSDL2.so
+        mixer = nil, -- path to libSDL2_mixer.so
+    },
 }
 ```
 

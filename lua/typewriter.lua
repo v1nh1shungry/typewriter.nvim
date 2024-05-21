@@ -2,43 +2,68 @@ local M = {}
 
 local ffi = require('ffi')
 
-local root_dir = vim.fs.normalize(vim.fs.dirname(debug.getinfo(1).source:sub(2)) .. '/..')
-
-local libtypewriter = ffi.load(vim.fs.joinpath(root_dir, 'build', 'libtypewriter.so'))
-
 local config = {
   enabled = true,
-  volume = 100.0,
+  volume = 100,
+  libs = {
+    sdl = nil,
+    mixer = nil,
+  },
 }
 
 ffi.cdef([[
-typedef struct AudioPlayback AudioPlayback;
-AudioPlayback *new_audio_playback();
-void delete_audio_playback(AudioPlayback *);
-void play_sound(AudioPlayback *, const char *);
-void set_volume(AudioPlayback *, float);
+typedef struct Mix_Chunk Mix_Chunk;
+int SDL_Init(unsigned int);
+int Mix_OpenAudio(int, unsigned short, int, int);
+Mix_Chunk *Mix_LoadWAV(const char *);
+int Mix_PlayChannel(int, Mix_Chunk *, int);
+int Mix_Volume(int, int);
+void Mix_FreeChunk(Mix_Chunk *);
+void Mix_Quit();
+void SDL_Quit();
 ]])
+
+local sdl
+local mixer
 
 local AudioPlaybackWrapper = {}
 AudioPlaybackWrapper.__index = AudioPlaybackWrapper
 
 local function AudioPlayback()
-  local self = { super = libtypewriter.new_audio_playback() }
-  ffi.gc(self.super, libtypewriter.delete_audio_playback)
+  local self = { bank = {} }
+  sdl.SDL_Init(0x00000010)
+  mixer.Mix_OpenAudio(44100, 0x8010, 2, 1024)
   return setmetatable(self, AudioPlaybackWrapper)
+end
+
+function AudioPlaybackWrapper.__gc(self)
+  for _, b in ipairs(self.bank) do
+    mixer.Mix_FreeChunk(b)
+  end
+  mixer.Mix_Quit()
+  sdl.SDL_Quit()
 end
 
 function AudioPlaybackWrapper.play_sound(self, filename)
   if config.enabled then
-    libtypewriter.play_sound(self.super, filename)
+    local sample = nil
+    for k, v in pairs(self.bank) do
+      if k == filename then
+        sample = v
+        break
+      end
+    end
+    if sample == nil then
+      sample = mixer.Mix_LoadWAV(filename)
+      self.bank[filename] = sample
+    end
+    mixer.Mix_PlayChannel(-1, sample, 0)
   end
 end
 
-function AudioPlaybackWrapper.set_volume(self, volume)
-  libtypewriter.set_volume(self.super, volume)
+function AudioPlaybackWrapper.set_volume(_, volume)
+  mixer.Mix_Volume(-1, math.floor(volume * 128 / 100))
 end
-
-local audio_playback = AudioPlayback()
 
 function M.toggle()
   config.enabled = not config.enabled
@@ -52,8 +77,13 @@ end
 function M.setup(opts)
   config = vim.tbl_extend('force', config, opts)
 
+  sdl = ffi.load(config.libs.sdl or 'libSDL2')
+  mixer = ffi.load(config.libs.mixer or 'libSDL2_mixer')
+
+  local audio_playback = AudioPlayback()
   audio_playback:set_volume(config.volume)
 
+  local root_dir = vim.fs.normalize(vim.fs.dirname(debug.getinfo(1).source:sub(2)) .. '/..')
   local any_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyany.wav')
   local enter_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyenter.wav')
   local augroup = vim.api.nvim_create_augroup('typewriter_events', {})

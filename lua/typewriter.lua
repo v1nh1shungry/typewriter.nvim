@@ -26,43 +26,18 @@ void SDL_Quit();
 local sdl
 local mixer
 
-local AudioPlaybackWrapper = {}
-AudioPlaybackWrapper.__index = AudioPlaybackWrapper
+local bank = {}
 
-local function AudioPlayback()
-  local self = { bank = {} }
-  sdl.SDL_Init(0x00000010)
-  mixer.Mix_OpenAudio(44100, 0x8010, 2, 1024)
-  return setmetatable(self, AudioPlaybackWrapper)
-end
-
-function AudioPlaybackWrapper.__gc(self)
-  for _, b in ipairs(self.bank) do
-    mixer.Mix_FreeChunk(b)
-  end
-  mixer.Mix_Quit()
-  sdl.SDL_Quit()
-end
-
-function AudioPlaybackWrapper.play_sound(self, filename)
+local function play_sound(filename, channel)
   if config.enabled then
-    local sample = nil
-    for k, v in pairs(self.bank) do
-      if k == filename then
-        sample = v
-        break
-      end
-    end
+    local sample = bank[filename]
     if sample == nil then
       sample = mixer.Mix_LoadWAV(filename)
-      self.bank[filename] = sample
+      bank[filename] = sample
     end
-    mixer.Mix_PlayChannel(-1, sample, 0)
+    return mixer.Mix_PlayChannel(channel, sample, 0)
   end
-end
-
-function AudioPlaybackWrapper.set_volume(_, volume)
-  mixer.Mix_Volume(-1, math.floor(volume * 128 / 100))
+  return channel
 end
 
 function M.toggle()
@@ -80,14 +55,18 @@ function M.setup(opts)
   sdl = ffi.load(config.libs.sdl or 'libSDL2')
   mixer = ffi.load(config.libs.mixer or 'libSDL2_mixer')
 
-  local audio_playback = AudioPlayback()
-  audio_playback:set_volume(config.volume)
+  sdl.SDL_Init(0x00000010)
+  mixer.Mix_OpenAudio(44100, 0x8010, 2, 1024)
+
+  mixer.Mix_Volume(-1, math.floor(config.volume * 128 / 100))
 
   local root_dir = vim.fs.normalize(vim.fs.dirname(debug.getinfo(1).source:sub(2)) .. '/..')
   local any_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyany.wav')
   local enter_sound = vim.fs.joinpath(root_dir, 'sounds', 'keyenter.wav')
   local augroup = vim.api.nvim_create_augroup('typewriter_events', {})
   local last_row, last_col = unpack(vim.api.nvim_win_get_cursor(0))
+  local channel_any = 0
+  local channel_enter = 1
 
   vim.api.nvim_create_autocmd('InsertEnter', {
     callback = function()
@@ -99,13 +78,24 @@ function M.setup(opts)
     callback = function()
       local row, col = unpack(vim.api.nvim_win_get_cursor(0))
       if row == last_row and col ~= last_col then
-        audio_playback:play_sound(any_sound)
+        channel_any = play_sound(any_sound, channel_any)
       elseif row > last_row and col <= last_col then
-        audio_playback:play_sound(enter_sound)
+        channel_enter = play_sound(enter_sound, channel_enter)
       elseif row < last_row then
-        audio_playback:play_sound(any_sound)
+        channel_any = play_sound(any_sound, channel_any)
       end
       last_row, last_col = row, col
+    end,
+    group = augroup,
+  })
+
+  vim.api.nvim_create_autocmd('VimLeave', {
+    callback = function()
+      for _, b in ipairs(bank) do
+        mixer.Mix_FreeChunk(b)
+      end
+      mixer.Mix_Quit()
+      sdl.SDL_Quit()
     end,
     group = augroup,
   })
